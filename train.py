@@ -16,6 +16,7 @@ import torch
 import dnnlib
 from torch_utils import distributed as dist
 from training import training_loop
+import glob
 
 import warnings
 warnings.filterwarnings('ignore', 'Grad strides do not match bucket view strides') # False warning printed by PyTorch 1.12.
@@ -189,19 +190,28 @@ def main(**kwargs):
         desc += f'-{opts.desc}'
 
     # Pick output directory.
+    prev_run_dirs = []
+    if os.path.isdir(opts.outdir):
+        prev_run_dirs = [x for x in os.listdir(opts.outdir) if os.path.isdir(os.path.join(opts.outdir, x))]
+    prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
+    prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
+    cur_run_id = max(prev_run_ids, default=0)
+    state_files = glob.glob(os.path.join(opts.outdir, f'{cur_run_id:05d}-{desc}', "training-state-*.pt"))
+    state_files.sort()
+    if len(state_files) > 0:
+        match = re.fullmatch(r'training-state-(\d+).pt', os.path.basename(state_files[-1]))
+        if not match or not os.path.isfile(state_files[-1]):
+            raise click.ClickException('--resume must point to training-state-*.pt from a previous training run')
+        c.resume_pkl = os.path.join(os.path.dirname(state_files[-1]), f'network-snapshot-{match.group(1)}.pkl')
+        c.resume_kimg = int(match.group(1))
+        c.resume_state_dump = state_files[-1]
+
     if dist.get_rank() != 0:
         c.run_dir = None
     elif opts.nosubdir:
         c.run_dir = opts.outdir
     else:
-        prev_run_dirs = []
-        if os.path.isdir(opts.outdir):
-            prev_run_dirs = [x for x in os.listdir(opts.outdir) if os.path.isdir(os.path.join(opts.outdir, x))]
-        prev_run_ids = [re.match(r'^\d+', x) for x in prev_run_dirs]
-        prev_run_ids = [int(x.group()) for x in prev_run_ids if x is not None]
-        cur_run_id = max(prev_run_ids, default=-1) + 1
         c.run_dir = os.path.join(opts.outdir, f'{cur_run_id:05d}-{desc}')
-        assert not os.path.exists(c.run_dir)
 
     # Print options.
     dist.print0()
@@ -227,9 +237,9 @@ def main(**kwargs):
     dist.print0('Creating output directory...')
     if dist.get_rank() == 0:
         os.makedirs(c.run_dir, exist_ok=True)
-        with open(os.path.join(c.run_dir, 'training_options.json'), 'wt') as f:
-            json.dump(c, f, indent=2)
-        dnnlib.util.Logger(file_name=os.path.join(c.run_dir, 'log.txt'), file_mode='a', should_flush=True)
+        # with open(os.path.join(c.run_dir, 'training_options.json'), 'wt') as f:
+        #     json.dump(c, f, indent=2)
+        # dnnlib.util.Logger(file_name=os.path.join(c.run_dir, 'log.txt'), file_mode='a', should_flush=True)
 
     # Train.
     training_loop.training_loop(**c)

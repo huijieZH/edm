@@ -194,11 +194,11 @@ def training_loop(
 
         # Update logs.
         training_stats.default_collector.update()
-        if dist.get_rank() == 0:
-            if stats_jsonl is None:
-                stats_jsonl = open(os.path.join(run_dir, 'stats.jsonl'), 'at')
-            stats_jsonl.write(json.dumps(dict(training_stats.default_collector.as_dict(), timestamp=time.time())) + '\n')
-            stats_jsonl.flush()
+        # if dist.get_rank() == 0:
+            # if stats_jsonl is None:
+            #     stats_jsonl = open(os.path.join(run_dir, 'stats.jsonl'), 'at')
+            # stats_jsonl.write(json.dumps(dict(training_stats.default_collector.as_dict(), timestamp=time.time())) + '\n')
+            # stats_jsonl.flush()
         dist.update_progress(cur_nimg // 1000, total_kimg)
 
         # Update state.
