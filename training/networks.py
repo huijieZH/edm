@@ -94,7 +94,7 @@ class Conv2d(torch.nn.Module):
 
 @persistence.persistent_class
 class GroupNorm(torch.nn.Module):
-    def __init__(self, num_channels, num_groups=32, min_channels_per_group=4, eps=1e-5):
+    def __init__(self, num_channels, num_groups=16, min_channels_per_group=4, eps=1e-5):
         super().__init__()
         self.num_groups = min(num_groups, num_channels // min_channels_per_group)
         self.eps = eps
@@ -376,7 +376,7 @@ class MultistageUNet(torch.nn.Module):
         de_model_channels   = [192, 128, 16],          
                                             # Base multiplier for the number of decoder channels.
         stage_num           = 3,
-        stage_interval      = [[[0.00001, 0.4420]], [[0.4420, 0.6308]], [[0.6308, 1]]],
+        stage_interval      = [[[0, 2.5103]], [[2.5103, 7.6577]], [[7.6577, torch.inf]]],
         
         channel_mult        = [1,2,2,2],    # Per-resolution multipliers for the number of channels.
         channel_mult_emb    = 4,            # Multiplier for the dimensionality of the embedding vector.
@@ -410,9 +410,8 @@ class MultistageUNet(torch.nn.Module):
             init=init, init_zero=init_zero, init_attn=init_attn,
         )
         # Multistage
-        self.stage_interval = torch.log(torch.tensor(stage_interval) * 80)/4
         self.stage_num = stage_num
-
+        self.stage_interval = stage_interval
         # Mapping.
         self.map_noise = PositionalEmbedding(num_channels=noise_channels, endpoint=True) if embedding_type == 'positional' else FourierEmbedding(num_channels=noise_channels)
         self.map_label = Linear(in_features=label_dim, out_features=noise_channels, **init) if label_dim else None
@@ -450,6 +449,7 @@ class MultistageUNet(torch.nn.Module):
         for stage_idx in range(stage_num):
             skips_copy = skips.copy() 
             dec = torch.nn.ModuleDict()
+            cout = en_model_channels * mult
             for level, mult in reversed(list(enumerate(channel_mult))):
                 res = img_resolution >> level
                 if level == len(channel_mult) - 1:
@@ -471,13 +471,10 @@ class MultistageUNet(torch.nn.Module):
         self.decs = torch.nn.ModuleList(self.decs)
 
     def forward(self, x, noise_labels, class_labels, augment_labels=None):
-        noise_labels[0]
         for i_stage, intervals in enumerate(self.stage_interval):
             for interval in intervals:
-                if noise_labels[0] > interval[0]*1000 and noise_labels[0] <= interval[1]*1000:
+                if (noise_labels[0] * 4).exp() > interval[0] and noise_labels[0] <= interval[1]:
                     current_stage = i_stage
-        if noise_labels[0] == 0:
-            current_stage = 0
         dec = self.decs[current_stage]
         # Mapping.
         emb = self.map_noise(noise_labels)

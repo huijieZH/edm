@@ -133,6 +133,9 @@ def main(**kwargs):
     elif opts.precond == 've':
         c.network_kwargs.class_name = 'training.networks.VEPrecond'
         c.loss_kwargs.class_name = 'training.loss.VELoss'
+    elif opts.precond == 'edm' and opts.arch == 'ddpmpp-multistage':
+        c.network_kwargs.class_name = 'training.networks.EDMPrecond'
+        c.loss_kwargs.class_name = 'training.loss.EDMMultistageLoss'        
     else:
         assert opts.precond == 'edm'
         c.network_kwargs.class_name = 'training.networks.EDMPrecond'
