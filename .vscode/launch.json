@@ -20,9 +20,11 @@
                 "/home/ubuntu/exp/multistage/test",
                 "--data",
                 "/home/ubuntu/dataset/edm/cifar10/dataset/cifar10-32x32.zip",
-                "--cond",
+                "--cond=0",
+                "--cres=1,2,2,2",
                 "--arch",
-                "ddpmpp",
+                "ddpmpp-multistage",
+                "--batch-gpu=32",
             ]
         },
         {

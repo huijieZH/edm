@@ -446,10 +446,11 @@ class MultistageUNet(torch.nn.Module):
 
         # Decoder.
         self.decs = []
+        cout_copy = cout
         for stage_idx in range(stage_num):
             skips_copy = skips.copy() 
             dec = torch.nn.ModuleDict()
-            cout = en_model_channels * mult
+            cout = cout_copy
             for level, mult in reversed(list(enumerate(channel_mult))):
                 res = img_resolution >> level
                 if level == len(channel_mult) - 1:
@@ -516,7 +517,8 @@ class MultistageUNet(torch.nn.Module):
                 aux = tmp if aux is None else tmp + aux
             else:
                 if x.shape[1] != block.in_channels:
-                    x = torch.cat([x, skips.pop()], dim=1)
+                    skip = skips.pop()
+                    x = torch.cat([x, skip], dim=1)
                 x = block(x, emb)
         return aux
 
