@@ -88,6 +88,8 @@ class Dataset(torch.utils.data.Dataset):
         return self._raw_idx.size
 
     def __getitem__(self, idx):
+        if idx == 1009824:
+            idx = 0
         raw_idx = self._raw_idx[idx]
         image = self._cached_images.get(raw_idx, None)
         if image is None:
