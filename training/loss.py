@@ -106,6 +106,14 @@ class EDMMultistageLoss:
                     select_intervals = intervals
                     break
 
+
+        if torch.cuda.current_device() <= 4:
+            select_intervals = net.module.model.stage_interval[0]
+        elif torch.cuda.current_device() in [5, 6]:
+            select_intervals = net.module.model.stage_interval[1]
+        else:
+            select_intervals = net.module.model.stage_interval[2]
+
         sigma = self.generate_sample_interval(select_intervals, images.shape[0]).to(device=images.device)
         # sigma = self.generate_sample_interval(net.module.model.stage_interval[1], images.shape[0]).to(device=images.device)
 
